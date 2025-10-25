@@ -6,14 +6,16 @@ pipeline {
                 checkout scm
             }
         }
-      
         stage("Test") {
             steps {
-                sh 'sudo apt  install npm'
-                sh 'npm test'
+                sh '''
+                    set -e
+                    sudo apt-get update
+                    sudo apt-get install -y npm
+                    npm test
+                '''
             }
         }
-      
         stage("Build"){
             steps{
                 sh 'npm run build'
