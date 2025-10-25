@@ -23,10 +23,10 @@ pipeline {
 
         stage("Deploy Container") {
             steps {
-                echo "🚀 Deploying Docker container..."
+                echo " Deploying Docker container..."
                 sh """
                 if [ "$(docker ps -aq -f name=${CONTAINER_NAME})" ]; then
-                    echo "🧹 Removing old container..."
+                    echo " Removing old container..."
                     docker rm -f ${CONTAINER_NAME}
                 fi
                 docker run -d -p ${PORT}:3000 --name ${CONTAINER_NAME} ${APP_NAME}:latest
@@ -36,7 +36,7 @@ pipeline {
 
         stage("Show Logs") {
             steps {
-                echo "📜 Showing container logs..."
+                echo " Showing container logs..."
                 sh "sleep 3 && docker logs ${CONTAINER_NAME}"
             }
         }
@@ -44,10 +44,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ App deployed successfully! Access it at: http://<your-server-ip>:${PORT}"
+            echo " App deployed successfully! Access it at: http://<your-server-ip>:${PORT}"
         }
         failure {
-            echo "❌ Build or deployment failed."
+            echo " Build or deployment failed."
         }
     }
 }
