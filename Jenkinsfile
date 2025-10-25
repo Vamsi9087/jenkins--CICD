@@ -1,6 +1,12 @@
 pipeline {
     agent any
 
+    environment {
+        APP_NAME = "my-node-app"
+        CONTAINER_NAME = "node-app"
+        PORT = "3000"
+    }
+
     stages {
         stage("Checkout") {
             steps {
@@ -8,32 +14,40 @@ pipeline {
             }
         }
 
-        stage("Install Dependencies") {
+        stage("Build Docker Image") {
             steps {
-                sh 'apt-get update -y || true' // optional if node is already installed
-                sh 'npm install'
+                echo "🐳 Building Docker image..."
+                sh "docker build -t ${APP_NAME}:latest ."
             }
         }
 
-        stage("Test") {
+        stage("Deploy Container") {
             steps {
-                sh 'npm test || echo "No tests configured, skipping..."'
+                echo "🚀 Deploying Docker container..."
+                sh """
+                if [ "$(docker ps -aq -f name=${CONTAINER_NAME})" ]; then
+                    echo "🧹 Removing old container..."
+                    docker rm -f ${CONTAINER_NAME}
+                fi
+                docker run -d -p ${PORT}:3000 --name ${CONTAINER_NAME} ${APP_NAME}:latest
+                """
             }
         }
 
-        stage("Build") {
+        stage("Show Logs") {
             steps {
-                sh 'npm run build || echo "No build script configured, skipping..."'
+                echo "📜 Showing container logs..."
+                sh "sleep 3 && docker logs ${CONTAINER_NAME}"
             }
         }
     }
 
     post {
         success {
-            echo '✅ Build and test succeeded!'
+            echo "✅ App deployed successfully! Access it at: http://<your-server-ip>:${PORT}"
         }
         failure {
-            echo '❌ Build or test failed.'
+            echo "❌ Build or deployment failed."
         }
     }
 }
