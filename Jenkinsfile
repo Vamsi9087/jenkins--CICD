@@ -16,7 +16,7 @@ pipeline {
 
         stage("Build Docker Image") {
             steps {
-                echo "🐳 Building Docker image..."
+                echo "🐳 Building Docker image (local Node.js)..."
                 sh "docker build -t ${APP_NAME}:latest ."
             }
         }
@@ -25,10 +25,12 @@ pipeline {
             steps {
                 echo "🚀 Deploying Docker container..."
                 sh '''
+                # Stop and remove old container if it exists
                 if [ "$(docker ps -aq -f name=$CONTAINER_NAME)" ]; then
                     echo "🧹 Removing old container..."
                     docker rm -f $CONTAINER_NAME
                 fi
+                # Run new container
                 docker run -d -p $PORT:3000 --name $CONTAINER_NAME $APP_NAME:latest
                 '''
             }
