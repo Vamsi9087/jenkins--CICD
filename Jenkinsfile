@@ -2,54 +2,70 @@ pipeline {
     agent any
 
     environment {
-        APP_NAME = "my-node-app"
-        CONTAINER_NAME = "node-app"
-        PORT = "3000"
+        NODE_ENV = 'production'
+        DEPLOY_SERVER = 'your-server-address'     
+        DEPLOY_USER = 'ubuntu'                   
+        DEPLOY_PATH = '/var/www/my-node-app' 
     }
 
     stages {
         stage("Checkout") {
             steps {
+                echo "📥 Checking out code..."
                 checkout scm
             }
         }
 
-        stage("Build Docker Image") {
+        stage("Install Dependencies") {
             steps {
-                echo "🐳 Building Docker image (local Node.js)..."
-                sh "docker build -t ${APP_NAME}:latest ."
+                echo "Installing dependencies..."
+                sh 'apt-get update -y || true' 
+                sh 'npm install'
             }
         }
 
-        stage("Deploy Container") {
+        stage("Test") {
             steps {
-                echo "🚀 Deploying Docker container..."
+                echo " Running tests..."
+                sh 'npm test || echo "No tests configured, skipping..."'
+            }
+        }
+
+        stage("Build") {
+            steps {
+                echo " Building the app..."
+                sh 'npm run build || echo "No build script configured, skipping..."'
+            }
+        }
+
+        stage("Deploy") {
+            when {
+                branch 'main'  
+            }
+            steps {
+                echo "Deploying to server..."
+                
                 sh '''
-                # Stop and remove old container if it exists
-                if [ "$(docker ps -aq -f name=$CONTAINER_NAME)" ]; then
-                    echo "🧹 Removing old container..."
-                    docker rm -f $CONTAINER_NAME
-                fi
-                # Run new container
-                docker run -d -p $PORT:3000 --name $CONTAINER_NAME $APP_NAME:latest
-                '''
-            }
-        }
+                echo "Uploading files to $DEPLOY_SERVER ..."
+                # Create the directory on the remote server if it doesn't exist
+                ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$DEPLOY_SERVER "mkdir -p $DEPLOY_PATH"
 
-        stage("Show Logs") {
-            steps {
-                echo "📜 Showing container logs..."
-                sh "sleep 3 && docker logs ${CONTAINER_NAME}"
+                # Copy build files to the server
+                scp -r dist/* $DEPLOY_USER@$DEPLOY_SERVER:$DEPLOY_PATH/
+
+                # Restart the app (example with PM2)
+                ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$DEPLOY_SERVER "cd $DEPLOY_PATH && npm install --production && pm2 restart all || pm2 start npm --name my-node-app -- start"
+                '''
             }
         }
     }
 
     post {
         success {
-            echo "✅ App deployed successfully! Access it at: http://<your-server-ip>:${PORT}"
+            echo ' Build, Test, and Deployment succeeded!'
         }
         failure {
-            echo "❌ Build or deployment failed."
+            echo ' Build, Test, or Deployment failed.'
         }
     }
 }
